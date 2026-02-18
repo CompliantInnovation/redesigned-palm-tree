@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.gantt-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.gantt-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.gantt-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+
+.gantt-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

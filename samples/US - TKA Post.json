@@ -1,0 +1,125 @@
+{
+  "planName": "US - TKA Post",
+  "activities": [
+    {
+      "id": "c6d54a9f909e4afd358408de4f362fcd",
+      "performanceWindowStart": 0,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "810875cdda2a4e49358508de4f362fcd",
+      "performanceWindowStart": 0,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "3905c68afdf54eb7358608de4f362fcd",
+      "performanceWindowStart": 0,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "7c21dceb845e4096358708de4f362fcd",
+      "performanceWindowStart": 0,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "7bf301b3b31d4412358808de4f362fcd",
+      "performanceWindowStart": 10,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "1ddfa8beecc54f2b358908de4f362fcd",
+      "performanceWindowStart": 10,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "55b65d23f1a1453a358a08de4f362fcd",
+      "performanceWindowStart": 10,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "3ddd8c69b2bc41be358b08de4f362fcd",
+      "performanceWindowStart": 10,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "e062a501ad6e43d1358c08de4f362fcd",
+      "performanceWindowStart": 25,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "d56c9d68a49b42a7358d08de4f362fcd",
+      "performanceWindowStart": 25,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "70be18edff8f455d358e08de4f362fcd",
+      "performanceWindowStart": 25,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "3d45d865711a42ba358f08de4f362fcd",
+      "performanceWindowStart": 25,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "a80bead7576a479f359008de4f362fcd",
+      "performanceWindowStart": 55,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "82a59dc78d194c29359108de4f362fcd",
+      "performanceWindowStart": 55,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "5d936e67218d4f55359208de4f362fcd",
+      "performanceWindowStart": 55,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "617e5e7a93714f06359308de4f362fcd",
+      "performanceWindowStart": 55,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "905cebf8687e4b96359408de4f362fcd",
+      "performanceWindowStart": 145,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "a233bd615f7c4b6f359508de4f362fcd",
+      "performanceWindowStart": 145,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "e65f1b7c3a224591359608de4f362fcd",
+      "performanceWindowStart": 145,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "7c28f827c9e945c8359708de4f362fcd",
+      "performanceWindowStart": 145,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "451952b6c9d04445359808de4f362fcd",
+      "performanceWindowStart": 330,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "14820d62e27f47c8359908de4f362fcd",
+      "performanceWindowStart": 330,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "a292fcfd6e9a4662359a08de4f362fcd",
+      "performanceWindowStart": 330,
+      "performanceWindowLength": 10
+    },
+    {
+      "id": "2621cdaa62874b43359b08de4f362fcd",
+      "performanceWindowStart": 330,
+      "performanceWindowLength": 10
+    }
+  ]
+}
