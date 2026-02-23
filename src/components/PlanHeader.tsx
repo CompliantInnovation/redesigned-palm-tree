@@ -7,9 +7,10 @@ import { exportPlan, downloadJson, validateImportedPlan } from "@/lib/utils";
 interface PlanHeaderProps {
   plan: Plan;
   dispatch: React.Dispatch<PlanAction>;
+  children?: React.ReactNode;
 }
 
-export function PlanHeader({ plan, dispatch }: PlanHeaderProps) {
+export function PlanHeader({ plan, dispatch, children }: PlanHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -86,6 +87,7 @@ export function PlanHeader({ plan, dispatch }: PlanHeaderProps) {
       >
         Clear
       </button>
+      {children}
     </div>
   );
 }
