@@ -53,6 +53,13 @@ function planReducer(state: Plan, action: PlanAction): Plan {
         ),
       };
 
+    case "REORDER_ACTIVITY": {
+      const activities = [...state.activities];
+      const [moved] = activities.splice(action.fromIndex, 1);
+      activities.splice(action.toIndex, 0, moved);
+      return { ...state, activities };
+    }
+
     case "IMPORT_PLAN":
       return importPlan(action.plan);
 

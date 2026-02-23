@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useCallback, useState, DragEvent } from "react";
 import { Plan, PlanAction } from "@/lib/types";
 import { getActivityName } from "@/lib/utils";
-import { ROW_HEIGHT, ROW_LABEL_WIDTH, TOTAL_DAYS } from "@/lib/constants";
+import { ROW_HEIGHT, ROW_LABEL_WIDTH, TIMELINE_HEIGHT, TOTAL_DAYS } from "@/lib/constants";
 import { useGanttInteraction } from "@/hooks/useGanttInteraction";
 import { GanttTimeline } from "./GanttTimeline";
 import { GanttDropZone } from "./GanttDropZone";
@@ -19,17 +19,48 @@ interface GanttChartProps {
 
 export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }: GanttChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const { onPointerDown, onPointerMove, onPointerUp } = useGanttInteraction(pixelsPerDay, dispatch);
+
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   const activities = plan.activities;
   const totalWidth = pixelsPerDay * TOTAL_DAYS;
 
-  const handleScroll = () => {
-    if (scrollRef.current && labelRef.current) {
-      labelRef.current.scrollTop = scrollRef.current.scrollTop;
-    }
+  const handleLabelDragStart = (e: DragEvent, index: number) => {
+    setDragFrom(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
   };
+
+  const handleLabelDragOver = (e: DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOver(index);
+  };
+
+  const handleLabelDrop = (e: DragEvent, toIndex: number) => {
+    e.preventDefault();
+    if (dragFrom !== null && dragFrom !== toIndex) {
+      dispatch({ type: "REORDER_ACTIVITY", fromIndex: dragFrom, toIndex });
+    }
+    setDragFrom(null);
+    setDragOver(null);
+  };
+
+  const handleLabelDragEnd = () => {
+    setDragFrom(null);
+    setDragOver(null);
+  };
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollLeft } = scrollRef.current;
+    if (labelRef.current) labelRef.current.scrollTop = scrollTop;
+    if (timelineRef.current) timelineRef.current.scrollLeft = scrollLeft;
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -52,6 +83,23 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }
         <span className="ml-2 text-xs text-gray-400">{activities.length} activities</span>
       </div>
 
+      {/* Fixed timeline header row */}
+      <div className="flex border-b border-gray-300">
+        {/* Corner cell above row labels */}
+        <div
+          className="flex-shrink-0 border-r border-gray-200 bg-gray-50"
+          style={{ width: ROW_LABEL_WIDTH, height: TIMELINE_HEIGHT }}
+        />
+        {/* Horizontally-scrollable timeline (synced with body) */}
+        <div
+          ref={timelineRef}
+          className="flex-1 overflow-hidden"
+        >
+          <GanttTimeline pixelsPerDay={pixelsPerDay} />
+        </div>
+      </div>
+
+      {/* Body: labels + chart rows */}
       <div className="flex flex-1 overflow-hidden">
         {/* Row labels */}
         <div
@@ -59,22 +107,34 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }
           className="flex-shrink-0 overflow-hidden border-r border-gray-200 bg-white"
           style={{ width: ROW_LABEL_WIDTH }}
         >
-          {/* Spacer for timeline */}
-          <div className="border-b border-gray-300" style={{ height: 32 }} />
           <div>
             {activities.map((a, i) => (
               <div
                 key={a._instanceId}
-                className="flex items-center border-b border-gray-100 px-2 text-xs text-gray-700"
+                draggable
+                onDragStart={(e) => handleLabelDragStart(e, i)}
+                onDragOver={(e) => handleLabelDragOver(e, i)}
+                onDrop={(e) => handleLabelDrop(e, i)}
+                onDragEnd={handleLabelDragEnd}
+                className={`flex cursor-grab items-center border-b px-2 text-xs text-gray-700 active:cursor-grabbing ${
+                  dragOver === i && dragFrom !== null && dragFrom !== i
+                    ? "border-t-2 border-t-blue-500 border-b-gray-100"
+                    : "border-b-gray-100"
+                } ${dragFrom === i ? "opacity-40" : ""}`}
                 style={{ height: ROW_HEIGHT }}
               >
+                <svg className="mr-1.5 h-3.5 w-3.5 flex-shrink-0 text-gray-300" viewBox="0 0 16 16" fill="currentColor">
+                  <circle cx="5" cy="3" r="1.2" /><circle cx="11" cy="3" r="1.2" />
+                  <circle cx="5" cy="8" r="1.2" /><circle cx="11" cy="8" r="1.2" />
+                  <circle cx="5" cy="13" r="1.2" /><circle cx="11" cy="13" r="1.2" />
+                </svg>
                 <span className="truncate">{getActivityName(a.id)}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Scrollable chart area */}
+        {/* Scrollable chart area (vertical + horizontal) */}
         <div
           ref={scrollRef}
           className="gantt-scroll flex-1 overflow-auto"
@@ -83,7 +143,6 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }
           onPointerUp={onPointerUp}
         >
           <div style={{ width: totalWidth }}>
-            <GanttTimeline pixelsPerDay={pixelsPerDay} />
             <GanttDropZone
               pixelsPerDay={pixelsPerDay}
               rowCount={activities.length}

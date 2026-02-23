@@ -33,5 +33,6 @@ export type PlanAction =
   | { type: "REMOVE_ACTIVITY"; instanceId: string }
   | { type: "MOVE_ACTIVITY"; instanceId: string; performanceWindowStart: number }
   | { type: "RESIZE_ACTIVITY"; instanceId: string; performanceWindowLength: number }
+  | { type: "REORDER_ACTIVITY"; fromIndex: number; toIndex: number }
   | { type: "IMPORT_PLAN"; plan: ExportedPlan }
   | { type: "CLEAR_PLAN" };
