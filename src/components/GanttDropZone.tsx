@@ -42,7 +42,7 @@ export function GanttDropZone({ pixelsPerDay, rowCount, dispatch, children }: Ga
 
   return (
     <div
-      className={`relative ${isDragOver ? "bg-blue-50/50" : ""}`}
+      className={`relative bg-white ${isDragOver ? "bg-blue-50/50" : ""}`}
       style={{ width: totalWidth, minHeight }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

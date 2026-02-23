@@ -117,6 +117,8 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }
                 onDrop={(e) => handleLabelDrop(e, i)}
                 onDragEnd={handleLabelDragEnd}
                 className={`flex cursor-grab items-center border-b px-2 text-xs text-gray-700 active:cursor-grabbing ${
+                  i % 2 === 1 ? "bg-gray-50" : "bg-white"
+                } ${
                   dragOver === i && dragFrom !== null && dragFrom !== i
                     ? "border-t-2 border-t-blue-500 border-b-gray-100"
                     : "border-b-gray-100"
@@ -148,12 +150,12 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }
               rowCount={activities.length}
               dispatch={dispatch}
             >
-              {/* Grid lines */}
+              {/* Row stripes */}
               {activities.map((_, i) => (
                 <div
                   key={i}
-                  className="absolute left-0 w-full border-b border-gray-100"
-                  style={{ top: i * ROW_HEIGHT + ROW_HEIGHT, height: 0 }}
+                  className={`absolute left-0 w-full border-b border-gray-100 ${i % 2 === 1 ? "bg-gray-50" : ""}`}
+                  style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
                 />
               ))}
               {activities.map((a, i) => (
