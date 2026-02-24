@@ -15,9 +15,11 @@ interface GanttChartProps {
   pixelsPerDay: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  selectedInstanceId: string | null;
+  onSelectActivity: (instanceId: string | null) => void;
 }
 
-export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }: GanttChartProps) {
+export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, selectedInstanceId, onSelectActivity }: GanttChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
@@ -166,6 +168,8 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut }
                   pixelsPerDay={pixelsPerDay}
                   dispatch={dispatch}
                   onPointerDown={onPointerDown}
+                  isSelected={a._instanceId === selectedInstanceId}
+                  onSelect={onSelectActivity}
                 />
               ))}
               {activities.length === 0 && (

@@ -17,6 +17,7 @@ export function PlanEditor() {
   const { plan, dispatch } = usePlanState();
   const [pixelsPerDay, setPixelsPerDay] = useState(DEFAULT_PIXELS_PER_DAY);
   const [jsonOrientation, setJsonOrientation] = useState<JsonEditorOrientation>("vertical");
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
 
   const zoomIn = useCallback(() => {
     setPixelsPerDay((p) => Math.min(MAX_PIXELS_PER_DAY, p + 1));
@@ -65,12 +66,15 @@ export function PlanEditor() {
               pixelsPerDay={pixelsPerDay}
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}
+              selectedInstanceId={selectedInstanceId}
+              onSelectActivity={setSelectedInstanceId}
             />
           </div>
           <JsonEditor
             plan={plan}
             dispatch={dispatch}
             orientation={jsonOrientation}
+            selectedInstanceId={selectedInstanceId}
             className={isHorizontal ? "h-full flex-shrink-0" : "flex-shrink-0"}
           />
         </div>

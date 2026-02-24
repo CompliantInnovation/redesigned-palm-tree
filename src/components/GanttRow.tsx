@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { PlanActivity, PlanAction } from "@/lib/types";
 import { dayToPixel, getActivityName, getActivityType } from "@/lib/utils";
 import { ACTIVITY_COLORS, ROW_HEIGHT } from "@/lib/constants";
@@ -16,6 +17,8 @@ interface GanttRowProps {
     currentStart: number,
     currentLength: number
   ) => void;
+  isSelected: boolean;
+  onSelect: (instanceId: string | null) => void;
 }
 
 export function GanttRow({
@@ -24,31 +27,43 @@ export function GanttRow({
   pixelsPerDay,
   dispatch,
   onPointerDown,
+  isSelected,
+  onSelect,
 }: GanttRowProps) {
   const left = dayToPixel(activity.performanceWindowStart, pixelsPerDay);
   const width = Math.max(dayToPixel(activity.performanceWindowLength, pixelsPerDay), 4);
   const activityType = getActivityType(activity.id);
   const colors = ACTIVITY_COLORS[activityType] || ACTIVITY_COLORS.UNKNOWN;
   const name = getActivityName(activity.id);
+  const didDrag = useRef(false);
 
   return (
     <div
-      className={`group absolute flex items-center rounded border ${colors.bg} ${colors.border} ${colors.text} cursor-grab select-none overflow-hidden text-[11px] font-medium shadow-sm active:cursor-grabbing`}
+      className={`group absolute flex items-center rounded border ${colors.bg} ${colors.border} ${colors.text} cursor-grab select-none overflow-hidden text-[11px] font-medium shadow-sm active:cursor-grabbing ${
+        isSelected ? "ring-2 ring-yellow-400 ring-offset-1" : ""
+      }`}
       style={{
         left,
         width,
         top: rowIndex * ROW_HEIGHT + 4,
         height: ROW_HEIGHT - 8,
       }}
-      onPointerDown={(e) =>
+      onPointerDown={(e) => {
+        didDrag.current = false;
         onPointerDown(
           e,
           activity._instanceId,
           "move",
           activity.performanceWindowStart,
           activity.performanceWindowLength
-        )
-      }
+        );
+      }}
+      onPointerMove={() => { didDrag.current = true; }}
+      onClick={() => {
+        if (!didDrag.current) {
+          onSelect(isSelected ? null : activity._instanceId);
+        }
+      }}
     >
       <span className="truncate px-1.5">{width > 30 ? name : ""}</span>
 

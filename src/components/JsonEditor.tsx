@@ -13,6 +13,7 @@ interface JsonEditorProps {
   plan: Plan;
   dispatch: React.Dispatch<PlanAction>;
   orientation: JsonEditorOrientation;
+  selectedInstanceId?: string | null;
   className?: string;
 }
 
@@ -181,11 +182,13 @@ function EditorArea({
   theme,
   status,
   onChange,
+  highlightRange,
 }: {
   text: string;
   theme: Theme;
   status: ValidationState;
   onChange: (value: string) => void;
+  highlightRange: { start: number; end: number } | null;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -196,6 +199,27 @@ function EditorArea({
       preRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   }, []);
+
+  // Highlight and scroll to selection range
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || !highlightRange) return;
+    ta.focus();
+    ta.setSelectionRange(highlightRange.start, highlightRange.end);
+
+    // Scroll textarea so the selection is visible.
+    // Calculate approximate line of the start position.
+    const textBefore = text.slice(0, highlightRange.start);
+    const lineNumber = textBefore.split("\n").length - 1;
+    // Approximate line height from computed style
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+    const scrollTarget = lineNumber * lineHeight - ta.clientHeight / 3;
+    ta.scrollTop = Math.max(0, scrollTarget);
+    // Sync the pre underlay
+    if (preRef.current) {
+      preRef.current.scrollTop = ta.scrollTop;
+    }
+  }, [highlightRange, text]);
 
   const colors = themes[theme];
   const hasError = status === "invalid-json" || status === "invalid-schema";
@@ -232,7 +256,42 @@ const DEFAULT_SIZE = 300;
 const MIN_SIZE = 80;
 const MAX_SIZE = 800;
 
-export function JsonEditor({ plan, dispatch, orientation, className = "" }: JsonEditorProps) {
+function findActivityBlockRange(text: string, activityId: string, occurrence: number): { start: number; end: number } | null {
+  // Find the nth occurrence of this activity ID in the text
+  const idNeedle = `"id": "${activityId}"`;
+  let idPos = -1;
+  let searchFrom = 0;
+  for (let n = 0; n <= occurrence; n++) {
+    idPos = text.indexOf(idNeedle, searchFrom);
+    if (idPos === -1) return null;
+    searchFrom = idPos + 1;
+  }
+
+  // Search backwards from idPos for the opening `{`
+  let start = -1;
+  for (let i = idPos - 1; i >= 0; i--) {
+    if (text[i] === "{") {
+      start = i;
+      break;
+    }
+  }
+  if (start === -1) return null;
+
+  // Search forwards from the opening `{` for the matching `}`
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        return { start, end: i + 1 };
+      }
+    }
+  }
+  return null;
+}
+
+export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, className = "" }: JsonEditorProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [size, setSize] = useState(DEFAULT_SIZE);
   const [theme, setTheme] = useState<Theme>("dark");
@@ -242,6 +301,25 @@ export function JsonEditor({ plan, dispatch, orientation, className = "" }: Json
   const resizeState = useRef<{ startPos: number; startSize: number } | null>(null);
 
   const isHorizontal = orientation === "horizontal";
+
+  // Compute highlight range from selection
+  const selectedActivity = selectedInstanceId
+    ? plan.activities.find((a) => a._instanceId === selectedInstanceId)
+    : null;
+  // Count how many prior activities share the same ID (for duplicate IDs in a plan)
+  const occurrence = selectedActivity
+    ? plan.activities
+        .slice(0, plan.activities.indexOf(selectedActivity))
+        .filter((a) => a.id === selectedActivity.id).length
+    : 0;
+  const highlightRange = selectedActivity ? findActivityBlockRange(text, selectedActivity.id, occurrence) : null;
+
+  // Auto-expand when an activity is selected
+  useEffect(() => {
+    if (highlightRange && collapsed) {
+      setCollapsed(false);
+    }
+  }, [selectedInstanceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isLocalEdit.current) {
@@ -316,7 +394,7 @@ export function JsonEditor({ plan, dispatch, orientation, className = "" }: Json
           {!collapsed && headerBar}
           {!collapsed && (
             <div className="flex-1 overflow-hidden">
-              <EditorArea text={text} theme={theme} status={status} onChange={handleChange} />
+              <EditorArea text={text} theme={theme} status={status} onChange={handleChange} highlightRange={highlightRange} />
             </div>
           )}
         </div>
@@ -370,7 +448,7 @@ export function JsonEditor({ plan, dispatch, orientation, className = "" }: Json
       </div>
       {!collapsed && (
         <div className="overflow-hidden" style={{ height: size }}>
-          <EditorArea text={text} theme={theme} status={status} onChange={handleChange} />
+          <EditorArea text={text} theme={theme} status={status} onChange={handleChange} highlightRange={highlightRange} />
         </div>
       )}
     </div>
