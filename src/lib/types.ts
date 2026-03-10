@@ -1,4 +1,5 @@
 export type ActivityType = "SURVEY" | "FUNCTIONAL_TEST";
+export type InvolvedSide = "LEFT" | "RIGHT";
 
 export interface CatalogActivity {
   id: string;
@@ -10,6 +11,7 @@ export interface PlanActivity {
   id: string;
   performanceWindowStart: number;
   performanceWindowLength: number;
+  involvedSide?: InvolvedSide;
   _instanceId: string;
 }
 
@@ -24,6 +26,7 @@ export interface ExportedPlan {
     id: string;
     performanceWindowStart: number;
     performanceWindowLength: number;
+    involvedSide?: InvolvedSide;
   }[];
 }
 
@@ -33,6 +36,7 @@ export type PlanAction =
   | { type: "REMOVE_ACTIVITY"; instanceId: string }
   | { type: "MOVE_ACTIVITY"; instanceId: string; performanceWindowStart: number }
   | { type: "RESIZE_ACTIVITY"; instanceId: string; performanceWindowLength: number }
+  | { type: "SET_INVOLVED_SIDE"; instanceId: string; involvedSide?: InvolvedSide }
   | { type: "REORDER_ACTIVITY"; fromIndex: number; toIndex: number }
   | { type: "IMPORT_PLAN"; plan: ExportedPlan }
   | { type: "CLEAR_PLAN" };

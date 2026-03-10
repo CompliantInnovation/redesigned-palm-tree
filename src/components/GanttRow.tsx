@@ -65,7 +65,14 @@ export function GanttRow({
         }
       }}
     >
-      <span className="truncate px-1.5">{width > 30 ? name : ""}</span>
+      {activity.involvedSide && width > 20 && (
+        <span className={`ml-1 flex-shrink-0 rounded px-0.5 text-[8px] font-bold leading-tight ${
+          activity.involvedSide === "LEFT" ? "bg-purple-200/60" : "bg-orange-200/60"
+        }`}>
+          {activity.involvedSide === "LEFT" ? "L" : "R"}
+        </span>
+      )}
+      <span className="truncate px-1">{width > 30 ? name : ""}</span>
 
       {/* Delete button */}
       <button

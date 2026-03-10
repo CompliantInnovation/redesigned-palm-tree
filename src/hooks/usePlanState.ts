@@ -53,6 +53,16 @@ function planReducer(state: Plan, action: PlanAction): Plan {
         ),
       };
 
+    case "SET_INVOLVED_SIDE":
+      return {
+        ...state,
+        activities: state.activities.map((a) =>
+          a._instanceId === action.instanceId
+            ? { ...a, involvedSide: action.involvedSide }
+            : a
+        ),
+      };
+
     case "REORDER_ACTIVITY": {
       const activities = [...state.activities];
       const [moved] = activities.splice(action.fromIndex, 1);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useState, DragEvent } from "react";
-import { Plan, PlanAction } from "@/lib/types";
+import { Plan, PlanAction, InvolvedSide } from "@/lib/types";
 import { getActivityName } from "@/lib/utils";
 import { ROW_HEIGHT, ROW_LABEL_WIDTH, TIMELINE_HEIGHT, TOTAL_DAYS } from "@/lib/constants";
 import { useGanttInteraction } from "@/hooks/useGanttInteraction";
@@ -132,7 +132,27 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, 
                   <circle cx="5" cy="8" r="1.2" /><circle cx="11" cy="8" r="1.2" />
                   <circle cx="5" cy="13" r="1.2" /><circle cx="11" cy="13" r="1.2" />
                 </svg>
-                <span className="truncate">{getActivityName(a.id)}</span>
+                <span className="truncate flex-1">{getActivityName(a.id)}</span>
+                <button
+                  className={`ml-1 flex-shrink-0 rounded px-1 py-0.5 text-[9px] font-bold leading-none ${
+                    a.involvedSide
+                      ? a.involvedSide === "LEFT"
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-orange-100 text-orange-700"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                  title={a.involvedSide ? `Side: ${a.involvedSide} (click to cycle)` : "No side set (click to set)"}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const cycle: (InvolvedSide | undefined)[] = [undefined, "LEFT", "RIGHT"];
+                    const currentIdx = cycle.indexOf(a.involvedSide);
+                    const next = cycle[(currentIdx + 1) % cycle.length];
+                    dispatch({ type: "SET_INVOLVED_SIDE", instanceId: a._instanceId, involvedSide: next });
+                  }}
+                >
+                  {a.involvedSide === "LEFT" ? "L" : a.involvedSide === "RIGHT" ? "R" : "—"}
+                </button>
               </div>
             ))}
           </div>

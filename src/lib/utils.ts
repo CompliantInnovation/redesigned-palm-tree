@@ -32,11 +32,17 @@ export function getActivityType(id: string): string {
 export function exportPlan(plan: Plan): ExportedPlan {
   return {
     planName: plan.planName,
-    activities: plan.activities.map(({ id, performanceWindowStart, performanceWindowLength }) => ({
-      id,
-      performanceWindowStart,
-      performanceWindowLength,
-    })),
+    activities: plan.activities.map(({ id, performanceWindowStart, performanceWindowLength, involvedSide }) => {
+      const activity: ExportedPlan["activities"][number] = {
+        id,
+        performanceWindowStart,
+        performanceWindowLength,
+      };
+      if (involvedSide) {
+        activity.involvedSide = involvedSide;
+      }
+      return activity;
+    }),
   };
 }
 
@@ -55,14 +61,15 @@ export function validateImportedPlan(data: unknown): data is ExportedPlan {
   const obj = data as Record<string, unknown>;
   if (typeof obj.planName !== "string") return false;
   if (!Array.isArray(obj.activities)) return false;
-  return obj.activities.every(
-    (a: unknown) =>
-      typeof a === "object" &&
-      a !== null &&
-      typeof (a as Record<string, unknown>).id === "string" &&
-      typeof (a as Record<string, unknown>).performanceWindowStart === "number" &&
-      typeof (a as Record<string, unknown>).performanceWindowLength === "number"
-  );
+  return obj.activities.every((a: unknown) => {
+    if (typeof a !== "object" || a === null) return false;
+    const act = a as Record<string, unknown>;
+    if (typeof act.id !== "string") return false;
+    if (typeof act.performanceWindowStart !== "number") return false;
+    if (typeof act.performanceWindowLength !== "number") return false;
+    if (act.involvedSide !== undefined && act.involvedSide !== "LEFT" && act.involvedSide !== "RIGHT") return false;
+    return true;
+  });
 }
 
 export function downloadJson(data: ExportedPlan) {
