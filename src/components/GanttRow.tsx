@@ -74,9 +74,24 @@ export function GanttRow({
       )}
       <span className="truncate px-1">{width > 30 ? name : ""}</span>
 
+      {/* Duplicate button */}
+      <button
+        className="absolute right-9 top-1/2 hidden h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-black/20 text-[10px] text-white hover:bg-black/40 group-hover:flex"
+        title="Duplicate"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          dispatch({ type: "DUPLICATE_ACTIVITY", instanceId: activity._instanceId });
+        }}
+      >
+        <svg className="h-2.5 w-2.5" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4 2a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V2zm2 8a2 2 0 00-2 2v2a2 2 0 002 2h6a2 2 0 002-2v-2a2 2 0 00-2-2h-1v1a3 3 0 01-3 3H5v-1H6a2 2 0 002-2v-1H6zM2 6a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V8a2 2 0 00-2-2H2z" />
+        </svg>
+      </button>
+
       {/* Delete button */}
       <button
         className="absolute right-5 top-1/2 hidden h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-black/20 text-[10px] text-white hover:bg-black/40 group-hover:flex"
+        title="Remove"
         onPointerDown={(e) => {
           e.stopPropagation();
           dispatch({ type: "REMOVE_ACTIVITY", instanceId: activity._instanceId });

@@ -37,6 +37,7 @@ export type PlanAction =
   | { type: "MOVE_ACTIVITY"; instanceId: string; performanceWindowStart: number }
   | { type: "RESIZE_ACTIVITY"; instanceId: string; performanceWindowLength: number }
   | { type: "SET_INVOLVED_SIDE"; instanceId: string; involvedSide?: InvolvedSide }
+  | { type: "DUPLICATE_ACTIVITY"; instanceId: string }
   | { type: "REORDER_ACTIVITY"; fromIndex: number; toIndex: number }
   | { type: "IMPORT_PLAN"; plan: ExportedPlan }
   | { type: "CLEAR_PLAN" };

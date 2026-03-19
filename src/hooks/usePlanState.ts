@@ -63,6 +63,16 @@ function planReducer(state: Plan, action: PlanAction): Plan {
         ),
       };
 
+    case "DUPLICATE_ACTIVITY": {
+      const idx = state.activities.findIndex((a) => a._instanceId === action.instanceId);
+      if (idx === -1) return state;
+      const source = state.activities[idx];
+      const copy = { ...source, _instanceId: generateInstanceId() };
+      const activities = [...state.activities];
+      activities.splice(idx + 1, 0, copy);
+      return { ...state, activities };
+    }
+
     case "REORDER_ACTIVITY": {
       const activities = [...state.activities];
       const [moved] = activities.splice(action.fromIndex, 1);
