@@ -254,4 +254,4 @@ The tool edits a pre-op and a post-op plan together on one VELYS timeline, where
 }
 ```
 
-**Import** accepts a bundle, the stored `planFile` JSONs (the phase is read from `index` in the URI), or a plain Laina plan.
+**Import** accepts a bundle, the stored `planFile` JSONs (the phase is read from `index` in the URI), or legacy plain Laina plans. Select the pre-op and post-op files together. Files without a URI index open an import dialog, where the phase is guessed from the plan or file name (`pre`/`vor`/`pre-op` vs `post`/`nach`/`post-op`), falling back to file order, and can be changed before importing.

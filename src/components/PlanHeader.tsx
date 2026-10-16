@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
-import { Plan, PlanAction } from "@/lib/types";
+import { useRef, useState } from "react";
+import { Phase, Plan, PlanAction } from "@/lib/types";
 import { downloadJson } from "@/lib/utils";
-import { Issue, buildBundle, classifyImport, sequenceFromBundle } from "@/lib/sequence";
+import { Issue, PHASES, buildBundle, classifyImport, sequenceFromBundle } from "@/lib/sequence";
+import { ImportDialog, PendingImport, PlanImport, importedPlanName } from "./ImportDialog";
 
 interface PlanHeaderProps {
   plan: Plan;
@@ -21,8 +22,34 @@ function readFile(file: File): Promise<string> {
   });
 }
 
+/** Guess a legacy plan's phase from its plan name or file name (e.g. "Vor der Knie OP Pre", "US - TKA Post"). */
+function guessPhase(...names: string[]): Phase | undefined {
+  const text = names.join(" ");
+  const pre = /\b(pre|vor|preop)\b|pre[-_ ]?op/i.test(text);
+  const post = /\b(post|nach|postop)\b|post[-_ ]?op/i.test(text);
+  if (pre === post) return undefined;
+  return pre ? "pre" : "post";
+}
+
+/** Assigns a phase to each file: URI index first, then a name guess, then whichever phase is still free. */
+function assignPhases(files: { fileName: string; imported: PlanImport }[]): PendingImport[] {
+  const known = files.map(({ fileName, imported }): PendingImport | { fileName: string; imported: PlanImport } => {
+    if (imported.kind === "stored" && imported.phase) return { fileName, imported, phase: imported.phase, source: "uri" };
+    const guess = guessPhase(importedPlanName(imported), fileName);
+    return guess ? { fileName, imported, phase: guess, source: "name" } : { fileName, imported };
+  });
+  const taken = new Set(known.flatMap((item) => ("phase" in item ? [item.phase] : [])));
+  return known.map((item) => {
+    if ("phase" in item) return item;
+    const free = PHASES.find((p) => !taken.has(p)) ?? "post";
+    taken.add(free);
+    return { ...item, phase: free, source: "order" };
+  });
+}
+
 export function PlanHeader({ plan, dispatch, issues, children }: PlanHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<PendingImport[] | null>(null);
   const errorCount = issues.filter((i) => i.level === "error").length;
 
   const handleExport = () => {
@@ -42,6 +69,7 @@ export function PlanHeader({ plan, dispatch, issues, children }: PlanHeaderProps
     e.target.value = "";
 
     const failures: string[] = [];
+    const planFiles: { fileName: string; imported: PlanImport }[] = [];
     for (const file of files) {
       let data: unknown;
       try {
@@ -61,14 +89,23 @@ export function PlanHeader({ plan, dispatch, issues, children }: PlanHeaderProps
         dispatch({ type: "IMPORT_SEQUENCE", plan: sequenceFromBundle(imported.bundle) });
         continue;
       }
+      planFiles.push({ fileName: file.name, imported });
+    }
 
-      const lainaPlan = imported.kind === "stored" ? imported.file : imported.plan;
-      const phase =
-        (imported.kind === "stored" && imported.phase) ||
-        (confirm(`Import "${lainaPlan.planName}" (${file.name}) as the PRE-op plan?\n\nOK = pre-op, Cancel = post-op`)
-          ? "pre"
-          : "post");
+    if (planFiles.length > 0) {
+      const items = assignPhases(planFiles);
+      const certain = items.every((i) => i.source === "uri");
+      const distinct = new Set(items.map((i) => i.phase)).size === items.length;
+      // Files whose URI already says pre or post import straight away; anything else is confirmed in the dialog.
+      if (certain && distinct) applyImports(items);
+      else setPending(items);
+    }
 
+    if (failures.length > 0) alert(failures.join("\n"));
+  };
+
+  const applyImports = (items: PendingImport[]) => {
+    for (const { imported, phase } of items) {
       if (imported.kind === "stored") {
         dispatch({
           type: "IMPORT_PHASE",
@@ -82,8 +119,6 @@ export function PlanHeader({ plan, dispatch, issues, children }: PlanHeaderProps
         dispatch({ type: "IMPORT_PHASE", phase, plan: imported.plan });
       }
     }
-
-    if (failures.length > 0) alert(failures.join("\n"));
   };
 
   const handleClear = () => {
@@ -110,7 +145,7 @@ export function PlanHeader({ plan, dispatch, issues, children }: PlanHeaderProps
       <button
         onClick={handleImport}
         className="rounded bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-200"
-        title="Import a bundle, stored plan files (select both pre and post), or a Laina plan"
+        title="Import a bundle, or select the pre-op and post-op files together (VELYS plan files or legacy Laina plans)"
       >
         Import
       </button>
@@ -129,6 +164,20 @@ export function PlanHeader({ plan, dispatch, issues, children }: PlanHeaderProps
         Clear
       </button>
       {children}
+      {pending && (
+        <ImportDialog
+          plan={plan}
+          items={pending}
+          onChangePhase={(index, phase) =>
+            setPending((items) => items && items.map((item, i) => (i === index ? { ...item, phase } : item)))
+          }
+          onCancel={() => setPending(null)}
+          onConfirm={() => {
+            applyImports(pending);
+            setPending(null);
+          }}
+        />
+      )}
     </div>
   );
 }

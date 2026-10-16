@@ -34,8 +34,31 @@ function serializePlan(plan: Plan, tab: Tab): string {
   });
 }
 
+/** Index of a `//` comment on the line, ignoring `//` inside strings (e.g. URIs); -1 if none. */
+function findCommentStart(line: string): number {
+  let inString = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inString) {
+      if (ch === "\\") i++;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') {
+      inString = true;
+    } else if (ch === "/" && line[i + 1] === "/") {
+      return i;
+    }
+  }
+  return -1;
+}
+
 function stripComments(text: string): string {
-  return text.replace(/^(.*?)\/\/.*$/gm, (_, before: string) => before.trimEnd());
+  return text
+    .split("\n")
+    .map((line) => {
+      const at = findCommentStart(line);
+      return at === -1 ? line : line.slice(0, at).trimEnd();
+    })
+    .join("\n");
 }
 
 function validate(text: string, phase: Phase, preOpDays: number): { state: ValidationState; parsed?: ExportedPlan } {
@@ -112,10 +135,10 @@ function tokenize(text: string): Token[] {
 
     // Extract trailing comment
     let commentPart = "";
-    const commentMatch = line.match(/^(.*?)(\/\/.*)$/);
-    if (commentMatch) {
-      line = commentMatch[1];
-      commentPart = commentMatch[2];
+    const commentAt = findCommentStart(line);
+    if (commentAt !== -1) {
+      commentPart = line.slice(commentAt);
+      line = line.slice(0, commentAt);
     }
 
     // Tokenize the JSON part
