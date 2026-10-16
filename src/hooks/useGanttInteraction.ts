@@ -15,6 +15,7 @@ interface DragState {
 
 export function useGanttInteraction(
   pixelsPerDay: number,
+  minDay: number,
   dispatch: React.Dispatch<PlanAction>
 ) {
   const dragState = useRef<DragState | null>(null);
@@ -50,7 +51,7 @@ export function useGanttInteraction(
       const dayDelta = Math.round(dx / pixelsPerDay);
 
       if (state.mode === "move") {
-        const newStart = Math.max(0, state.originalStart + dayDelta);
+        const newStart = Math.max(minDay, state.originalStart + dayDelta);
         dispatch({
           type: "MOVE_ACTIVITY",
           instanceId: state.instanceId,
@@ -65,7 +66,7 @@ export function useGanttInteraction(
         });
       }
     },
-    [pixelsPerDay, dispatch]
+    [pixelsPerDay, minDay, dispatch]
   );
 
   const onPointerUp = useCallback(() => {

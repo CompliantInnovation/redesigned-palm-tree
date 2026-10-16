@@ -9,6 +9,14 @@ export const ROW_HEIGHT = 40;
 export const TIMELINE_HEIGHT = 32;
 export const ROW_LABEL_WIDTH = 200;
 export const MIN_WINDOW_LENGTH = 1;
+export const ASSESSMENT_PANEL_WIDTH = 340;
+
+export const DEFAULT_PRE_OP_DAYS = 150;
+export const MAX_PRE_OP_DAYS = 400;
+export const LAINA_PROVIDER = "laina_health";
+export const PLAN_ID_PLACEHOLDER = "{planId}";
+export const PLAN_CONTENT_TYPE = "application/json";
+export const PHASE_INDEX = { pre: 1, post: 2 } as const;
 
 export const ACTIVITY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   SURVEY: {

@@ -1,23 +1,27 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { usePlanState } from "@/hooks/usePlanState";
 import {
   DEFAULT_PIXELS_PER_DAY,
   MIN_PIXELS_PER_DAY,
   MAX_PIXELS_PER_DAY,
   SIDEBAR_WIDTH,
+  ASSESSMENT_PANEL_WIDTH,
 } from "@/lib/constants";
+import { validateSequence } from "@/lib/sequence";
 import { PlanHeader } from "./PlanHeader";
 import { ActivityCatalog } from "./ActivityCatalog";
 import { GanttChart } from "./GanttChart";
 import { JsonEditor, JsonEditorOrientation } from "./JsonEditor";
+import { PlanSidebar } from "./PlanSidebar";
 
 export function PlanEditor() {
   const { plan, dispatch } = usePlanState();
   const [pixelsPerDay, setPixelsPerDay] = useState(DEFAULT_PIXELS_PER_DAY);
   const [jsonOrientation, setJsonOrientation] = useState<JsonEditorOrientation>("vertical");
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const issues = useMemo(() => validateSequence(plan), [plan]);
 
   const zoomIn = useCallback(() => {
     setPixelsPerDay((p) => Math.min(MAX_PIXELS_PER_DAY, p + 1));
@@ -35,7 +39,7 @@ export function PlanEditor() {
 
   return (
     <div className="flex h-full flex-col">
-      <PlanHeader plan={plan} dispatch={dispatch}>
+      <PlanHeader plan={plan} dispatch={dispatch} issues={issues}>
         <button
           onClick={toggleOrientation}
           className="rounded bg-gray-100 px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-200"
@@ -77,6 +81,9 @@ export function PlanEditor() {
             selectedInstanceId={selectedInstanceId}
             className={isHorizontal ? "h-full flex-shrink-0" : "flex-shrink-0"}
           />
+        </div>
+        <div className="flex-shrink-0" style={{ width: ASSESSMENT_PANEL_WIDTH }}>
+          <PlanSidebar plan={plan} dispatch={dispatch} issues={issues} selectedInstanceId={selectedInstanceId} />
         </div>
       </div>
     </div>

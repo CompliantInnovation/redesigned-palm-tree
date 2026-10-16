@@ -9,6 +9,8 @@ interface GanttRowProps {
   activity: PlanActivity;
   rowIndex: number;
   pixelsPerDay: number;
+  originDay: number;
+  dueDay?: number;
   dispatch: React.Dispatch<PlanAction>;
   onPointerDown: (
     e: React.PointerEvent,
@@ -25,12 +27,14 @@ export function GanttRow({
   activity,
   rowIndex,
   pixelsPerDay,
+  originDay,
+  dueDay,
   dispatch,
   onPointerDown,
   isSelected,
   onSelect,
 }: GanttRowProps) {
-  const left = dayToPixel(activity.performanceWindowStart, pixelsPerDay);
+  const left = dayToPixel(activity.performanceWindowStart, pixelsPerDay, originDay);
   const width = Math.max(dayToPixel(activity.performanceWindowLength, pixelsPerDay), 4);
   const activityType = getActivityType(activity.id);
   const colors = ACTIVITY_COLORS[activityType] || ACTIVITY_COLORS.UNKNOWN;
@@ -73,6 +77,15 @@ export function GanttRow({
         </span>
       )}
       <span className="truncate px-1">{width > 30 ? name : ""}</span>
+
+      {/* Due date marker */}
+      {dueDay !== undefined && (
+        <div
+          className="pointer-events-none absolute inset-y-0 w-0.5 bg-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
+          style={{ left: dayToPixel(dueDay - activity.performanceWindowStart, pixelsPerDay) }}
+          title={`Due day ${dueDay}`}
+        />
+      )}
 
       {/* Duplicate button */}
       <button

@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Plan, PlanAction, ExportedPlan } from "@/lib/types";
-import { exportPlan, validateImportedPlan, getActivityName } from "@/lib/utils";
+import { Plan, PlanAction, ExportedPlan, Phase } from "@/lib/types";
+import { validateImportedPlan, getActivityName } from "@/lib/utils";
+import { PHASE_LABELS, buildBundle, exportLainaPlan, phaseActivities, phaseOf } from "@/lib/sequence";
 
-type ValidationState = "valid" | "invalid-json" | "invalid-schema" | "synced";
+type ValidationState = "valid" | "invalid-json" | "invalid-schema" | "invalid-range" | "synced";
+type Tab = Phase | "bundle";
+
+const TABS: { value: Tab; label: string }[] = [
+  { value: "pre", label: `${PHASE_LABELS.pre} (Laina)` },
+  { value: "post", label: `${PHASE_LABELS.post} (Laina)` },
+  { value: "bundle", label: "Bundle" },
+];
 type Theme = "dark" | "light";
 
 export type JsonEditorOrientation = "vertical" | "horizontal";
@@ -17,8 +25,9 @@ interface JsonEditorProps {
   className?: string;
 }
 
-function serializePlan(plan: Plan): string {
-  const json = JSON.stringify(exportPlan(plan), null, 2);
+function serializePlan(plan: Plan, tab: Tab): string {
+  const data = tab === "bundle" ? buildBundle(plan) : exportLainaPlan(plan, tab);
+  const json = JSON.stringify(data, null, 2);
   return json.replace(/"id": "([^"]+)"(,?)/g, (_, id: string, comma: string) => {
     const name = getActivityName(id);
     return `"id": "${id}"${comma} // ${name}`;
@@ -29,7 +38,7 @@ function stripComments(text: string): string {
   return text.replace(/^(.*?)\/\/.*$/gm, (_, before: string) => before.trimEnd());
 }
 
-function validate(text: string): { state: ValidationState; parsed?: ExportedPlan } {
+function validate(text: string, phase: Phase, preOpDays: number): { state: ValidationState; parsed?: ExportedPlan } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stripComments(text));
@@ -39,7 +48,17 @@ function validate(text: string): { state: ValidationState; parsed?: ExportedPlan
   if (!validateImportedPlan(parsed)) {
     return { state: "invalid-schema" };
   }
-  return { state: "valid", parsed: parsed as ExportedPlan };
+  // Laina days can't be negative, and pre-op windows must end by surgery (Laina day preOpDays).
+  const outOfRange = parsed.activities.some(
+    (a) =>
+      a.performanceWindowStart < 0 ||
+      a.performanceWindowLength < 1 ||
+      (phase === "pre" && a.performanceWindowStart + a.performanceWindowLength > preOpDays)
+  );
+  if (outOfRange) {
+    return { state: "invalid-range" };
+  }
+  return { state: "valid", parsed };
 }
 
 // --- Syntax highlighting ---
@@ -183,12 +202,17 @@ function EditorArea({
   status,
   onChange,
   highlightRange,
+  focusKey,
+  readOnly,
 }: {
   text: string;
   theme: Theme;
   status: ValidationState;
   onChange: (value: string) => void;
   highlightRange: { start: number; end: number } | null;
+  /** Changes when the selected activity changes; only then does the editor take focus. */
+  focusKey: string | null;
+  readOnly: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -200,10 +224,18 @@ function EditorArea({
     }
   }, []);
 
+  // Jump to the selection once per new selection. Later text changes (e.g. typing a
+  // plan name elsewhere) must not pull focus back into the editor.
+  const pendingFocus = useRef(false);
+  useEffect(() => {
+    pendingFocus.current = focusKey !== null;
+  }, [focusKey]);
+
   // Highlight and scroll to selection range
   useEffect(() => {
     const ta = textareaRef.current;
-    if (!ta || !highlightRange) return;
+    if (!ta || !highlightRange || !pendingFocus.current) return;
+    pendingFocus.current = false;
     ta.focus();
     ta.setSelectionRange(highlightRange.start, highlightRange.end);
 
@@ -222,7 +254,7 @@ function EditorArea({
   }, [highlightRange, text]);
 
   const colors = themes[theme];
-  const hasError = status === "invalid-json" || status === "invalid-schema";
+  const hasError = status === "invalid-json" || status === "invalid-schema" || status === "invalid-range";
 
   return (
     <div className={`relative h-full w-full overflow-hidden ${colors.bg} ${hasError ? `ring-2 ring-inset ${colors.errorRing}` : ""}`}>
@@ -242,6 +274,7 @@ function EditorArea({
         value={text}
         onChange={(e) => onChange(e.target.value)}
         onScroll={handleScroll}
+        readOnly={readOnly}
         spellCheck={false}
         className={`relative h-full w-full resize-none border-0 bg-transparent p-3 font-mono text-xs leading-relaxed text-transparent ${colors.caret} focus:outline-none`}
         style={{ caretColor: theme === "dark" ? "#e5e7eb" : "#111827" }}
@@ -295,30 +328,34 @@ export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, cl
   const [collapsed, setCollapsed] = useState(true);
   const [size, setSize] = useState(DEFAULT_SIZE);
   const [theme, setTheme] = useState<Theme>("dark");
-  const [text, setText] = useState(() => serializePlan(plan));
+  const [tab, setTab] = useState<Tab>("post");
+  const [text, setText] = useState(() => serializePlan(plan, "post"));
   const [status, setStatus] = useState<ValidationState>("synced");
   const isLocalEdit = useRef(false);
   const resizeState = useRef<{ startPos: number; startSize: number } | null>(null);
 
   const isHorizontal = orientation === "horizontal";
 
-  // Compute highlight range from selection
+  // Compute highlight range from selection (within the selected activity's phase plan)
   const selectedActivity = selectedInstanceId
     ? plan.activities.find((a) => a._instanceId === selectedInstanceId)
     : null;
+  const selectedPhase = selectedActivity ? phaseOf(selectedActivity.performanceWindowStart) : null;
+  const phaseList = selectedPhase ? phaseActivities(plan, selectedPhase) : [];
   // Count how many prior activities share the same ID (for duplicate IDs in a plan)
   const occurrence = selectedActivity
-    ? plan.activities
-        .slice(0, plan.activities.indexOf(selectedActivity))
+    ? phaseList
+        .slice(0, phaseList.indexOf(selectedActivity))
         .filter((a) => a.id === selectedActivity.id).length
     : 0;
-  const highlightRange = selectedActivity ? findActivityBlockRange(text, selectedActivity.id, occurrence) : null;
+  const highlightRange =
+    selectedActivity && tab === selectedPhase ? findActivityBlockRange(text, selectedActivity.id, occurrence) : null;
 
-  // Auto-expand when an activity is selected
+  // Auto-expand and switch to the activity's plan when an activity is selected
   useEffect(() => {
-    if (highlightRange && collapsed) {
-      setCollapsed(false);
-    }
+    if (!selectedPhase) return;
+    if (collapsed) setCollapsed(false);
+    if (tab !== selectedPhase) setTab(selectedPhase);
   }, [selectedInstanceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -326,23 +363,40 @@ export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, cl
       isLocalEdit.current = false;
       return;
     }
-    const serialized = serializePlan(plan);
-    setText(serialized);
+    setText(serializePlan(plan, tab));
     setStatus("synced");
-  }, [plan]);
+  }, [plan, tab]);
 
   const handleChange = useCallback(
     (value: string) => {
+      if (tab === "bundle") return;
       setText(value);
-      const result = validate(value);
+      const result = validate(value, tab, plan.preOpDays);
       setStatus(result.state);
       if (result.state === "valid" && result.parsed) {
         isLocalEdit.current = true;
-        dispatch({ type: "IMPORT_PLAN", plan: result.parsed });
+        dispatch({ type: "IMPORT_PHASE", phase: tab, plan: result.parsed });
         setStatus("synced");
       }
     },
-    [dispatch]
+    [dispatch, tab, plan.preOpDays]
+  );
+
+  const tabBar = (
+    <div className="flex items-center gap-0.5">
+      {TABS.map((t) => (
+        <button
+          key={t.value}
+          onClick={() => setTab(t.value)}
+          className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+            tab === t.value ? "bg-blue-500 text-white" : "text-gray-500 hover:bg-gray-200"
+          }`}
+          title={t.value === "bundle" ? "Read-only: everything exported by Export Bundle" : "Editable: the plan sent to Laina"}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
   );
 
   const toggleTheme = useCallback(() => setTheme((t) => (t === "dark" ? "light" : "dark")), []);
@@ -369,7 +423,7 @@ export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, cl
 
   const headerBar = (
     <div className="flex items-center justify-between bg-gray-50 px-3 py-1.5 border-b border-gray-200">
-      <span className="text-xs font-semibold text-gray-600">JSON Editor</span>
+      {tabBar}
       <div className="flex items-center gap-2">
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
         <StatusBadge status={status} />
@@ -394,7 +448,7 @@ export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, cl
           {!collapsed && headerBar}
           {!collapsed && (
             <div className="flex-1 overflow-hidden">
-              <EditorArea text={text} theme={theme} status={status} onChange={handleChange} highlightRange={highlightRange} />
+              <EditorArea text={text} theme={theme} status={status} onChange={handleChange} highlightRange={highlightRange} focusKey={selectedInstanceId ?? null} readOnly={tab === "bundle"} />
             </div>
           )}
         </div>
@@ -441,6 +495,7 @@ export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, cl
           </svg>
           JSON Editor
         </button>
+        {!collapsed && tabBar}
         <div className="flex items-center gap-2">
           {!collapsed && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
           <StatusBadge status={status} />
@@ -448,7 +503,7 @@ export function JsonEditor({ plan, dispatch, orientation, selectedInstanceId, cl
       </div>
       {!collapsed && (
         <div className="overflow-hidden" style={{ height: size }}>
-          <EditorArea text={text} theme={theme} status={status} onChange={handleChange} highlightRange={highlightRange} />
+          <EditorArea text={text} theme={theme} status={status} onChange={handleChange} highlightRange={highlightRange} focusKey={selectedInstanceId ?? null} readOnly={tab === "bundle"} />
         </div>
       )}
     </div>
@@ -482,6 +537,15 @@ function StatusBadge({ status }: { status: ValidationState }) {
             <path d="M8 1a7 7 0 110 14A7 7 0 018 1zm-.5 3a.5.5 0 00-.5.5v4a.5.5 0 001 0v-4a.5.5 0 00-.5-.5zm0 7a.6.6 0 100-1.2.6.6 0 000 1.2z" />
           </svg>
           Invalid JSON
+        </span>
+      );
+    case "invalid-range":
+      return (
+        <span className="flex items-center gap-1 text-xs text-amber-500" title="Days must be >= 0, and pre-op windows must end by the day of surgery">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8.982 1.566a1.13 1.13 0 00-1.964 0L.165 13.233c-.457.778.091 1.767.982 1.767h13.706c.891 0 1.44-.99.982-1.767L8.982 1.566zM8 5a.5.5 0 01.5.5v3a.5.5 0 01-1 0v-3A.5.5 0 018 5zm.5 7a.6.6 0 11-1.2 0 .6.6 0 011.2 0z" />
+          </svg>
+          Window out of range
         </span>
       );
     case "invalid-schema":

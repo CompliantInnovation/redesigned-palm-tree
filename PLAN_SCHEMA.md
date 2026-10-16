@@ -209,3 +209,49 @@ components:
             $ref: "#/components/schemas/PlanActivity"
           description: Ordered list of plan activities.
 ```
+
+## Pre-op / Post-op Bundle
+
+The tool edits a pre-op and a post-op plan together on one VELYS timeline, where day 0 is surgery and pre-op days are negative. Laina has no negative days, so **Export Bundle** splits the timeline into two Laina plans:
+
+- Activities starting before day 0 go to the **pre-op** plan (`index=1`); all others go to the **post-op** plan (`index=2`). A pre-op window must end by day 0.
+- Laina pre-op day 0 is VELYS day `-preOpDays`, so a pre-op VELYS day `d` is exported as Laina day `d + preOpDays`. Post-op days are unchanged.
+- Activities sharing an identical window form one **assessment**. Each assessment has a due day inside its window (`start <= due <= start + length - 1`), stored as `delta_days = due`, `days_pre = due - start`, `days_post = start + length - due`.
+
+```jsonc
+{
+  "bundleVersion": 1,
+  "planIdPlaceholder": "{planId}",       // replace with the plan id Laina returns
+  "preOpDays": 150,
+  "defaultSide": "LEFT",                 // optional; becomes ?side=left in the URI
+  "plans": [
+    {
+      "phase": "pre",                    // "pre" | "post"
+      "index": 1,                        // 1 = pre, 2 = post
+      "lainaDayZero": -150,              // VELYS day corresponding to Laina day 0
+      "laina": { "planName": "...", "activities": [ /* Plan schema above */ ] },
+      "indexRecord": {
+        "name": "...", "title": "...", "provider": "laina_health",
+        "uri": "lainahealth://plan/{planId}?side=left&index=1",
+        "contentType": "application/json"
+      },
+      "planFile": {
+        "name": "...", "description": "...", "planName": "...",
+        "uri": "lainahealth://plan/{planId}?side=left&index=1",
+        "activities": [ /* same as laina.activities */ ],
+        "assessments": [
+          {
+            "slug": "pre-op", "title": "Pre-operative Assessment",
+            "delta_days": -42,
+            "performance_window": { "days_pre": 108, "days_post": 42 },
+            "required": true
+          }
+        ]
+      }
+    }
+    // ...post plan
+  ]
+}
+```
+
+**Import** accepts a bundle, the stored `planFile` JSONs (the phase is read from `index` in the URI), or a plain Laina plan.

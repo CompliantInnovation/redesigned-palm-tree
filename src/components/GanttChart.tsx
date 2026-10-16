@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useCallback, useState, DragEvent } from "react";
+import { useRef, useCallback, useState, useMemo, DragEvent } from "react";
 import { Plan, PlanAction, InvolvedSide } from "@/lib/types";
-import { getActivityName } from "@/lib/utils";
+import { dayToPixel, getActivityName } from "@/lib/utils";
+import { deriveAssessments, PHASES } from "@/lib/sequence";
 import { ROW_HEIGHT, ROW_LABEL_WIDTH, TIMELINE_HEIGHT, TOTAL_DAYS } from "@/lib/constants";
 import { useGanttInteraction } from "@/hooks/useGanttInteraction";
 import { GanttTimeline } from "./GanttTimeline";
@@ -23,13 +24,25 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, 
   const scrollRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
-  const { onPointerDown, onPointerMove, onPointerUp } = useGanttInteraction(pixelsPerDay, dispatch);
+  const originDay = -plan.preOpDays;
+  const { onPointerDown, onPointerMove, onPointerUp } = useGanttInteraction(pixelsPerDay, originDay, dispatch);
 
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   const activities = plan.activities;
-  const totalWidth = pixelsPerDay * TOTAL_DAYS;
+  const totalWidth = dayToPixel(TOTAL_DAYS, pixelsPerDay, originDay);
+  const surgeryX = dayToPixel(0, pixelsPerDay, originDay);
+
+  const dueDayByInstance = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const phase of PHASES) {
+      for (const assessment of deriveAssessments(plan, phase)) {
+        for (const a of assessment.activities) map.set(a._instanceId, assessment.dueDay);
+      }
+    }
+    return map;
+  }, [plan]);
 
   const handleLabelDragStart = (e: DragEvent, index: number) => {
     setDragFrom(index);
@@ -97,7 +110,7 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, 
           ref={timelineRef}
           className="flex-1 overflow-hidden"
         >
-          <GanttTimeline pixelsPerDay={pixelsPerDay} />
+          <GanttTimeline pixelsPerDay={pixelsPerDay} originDay={originDay} />
         </div>
       </div>
 
@@ -169,6 +182,7 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, 
           <div style={{ width: totalWidth }}>
             <GanttDropZone
               pixelsPerDay={pixelsPerDay}
+              originDay={originDay}
               rowCount={activities.length}
               dispatch={dispatch}
             >
@@ -180,12 +194,23 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, 
                   style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
                 />
               ))}
+              {/* Pre-op shading and day of surgery */}
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0 bg-amber-50/70"
+                style={{ width: surgeryX }}
+              />
+              <div
+                className="pointer-events-none absolute inset-y-0 w-0.5 bg-rose-400/70"
+                style={{ left: surgeryX }}
+              />
               {activities.map((a, i) => (
                 <GanttRow
                   key={a._instanceId}
                   activity={a}
                   rowIndex={i}
                   pixelsPerDay={pixelsPerDay}
+                  originDay={originDay}
+                  dueDay={dueDayByInstance.get(a._instanceId)}
                   dispatch={dispatch}
                   onPointerDown={onPointerDown}
                   isSelected={a._instanceId === selectedInstanceId}
@@ -194,7 +219,7 @@ export function GanttChart({ plan, dispatch, pixelsPerDay, onZoomIn, onZoomOut, 
               ))}
               {activities.length === 0 && (
                 <div className="flex h-48 items-center justify-center text-sm text-gray-400">
-                  Drag activities from the catalog to add them to the plan
+                  Drag activities from the catalog: before day 0 for the pre-op plan, from day 0 for post-op
                 </div>
               )}
             </GanttDropZone>

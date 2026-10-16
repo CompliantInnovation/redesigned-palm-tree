@@ -7,14 +7,15 @@ import { TOTAL_DAYS, ROW_HEIGHT } from "@/lib/constants";
 
 interface GanttDropZoneProps {
   pixelsPerDay: number;
+  originDay: number;
   rowCount: number;
   dispatch: React.Dispatch<PlanAction>;
   children: React.ReactNode;
 }
 
-export function GanttDropZone({ pixelsPerDay, rowCount, dispatch, children }: GanttDropZoneProps) {
+export function GanttDropZone({ pixelsPerDay, originDay, rowCount, dispatch, children }: GanttDropZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const totalWidth = pixelsPerDay * TOTAL_DAYS;
+  const totalWidth = pixelsPerDay * (TOTAL_DAYS - originDay);
   const minHeight = Math.max(rowCount * ROW_HEIGHT, 200);
 
   const handleDragOver = (e: DragEvent) => {
@@ -35,7 +36,7 @@ export function GanttDropZone({ pixelsPerDay, rowCount, dispatch, children }: Ga
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left + e.currentTarget.scrollLeft;
-    const day = pixelToDay(x, pixelsPerDay);
+    const day = pixelToDay(x, pixelsPerDay, originDay);
 
     dispatch({ type: "ADD_ACTIVITY", id: activityId, performanceWindowStart: day });
   };
